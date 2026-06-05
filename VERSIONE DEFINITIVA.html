@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BetBuddy - Party Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<script>
+  window.onerror = function(msg, url, lineNo) {
+    console.log("Errore gestito: " + msg);
+    return true; 
+  };
+</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
+:root{
+  --bg:#090909;
+  --bg2:#0f0f0f;
+  --bg3:#161616;
+  --purple:#9b5cf6;
+  --purple2:#7c3aed;
+  --purple-dim:#2d1b69;
+  --text:#f0eef8;
+  --text2:#a89ec4;
+  --text3:#5a5272;
+  --green:#10b981;
+  --red:#ef4444;
+  --blue:#3b82f6;
+  --gold:#f59e0b;
+  --border:rgba(155,92,246,0.2);
+  --border2:rgba(155,92,246,0.08);
+}
+body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;min-height:100dvh;overflow-x:hidden;}
+h1,h2,h3,.display{font-family:'Syne',sans-serif;}
+
+.screen{display:none;min-height:100dvh;flex-direction:column;padding:0 0 env(safe-area-inset-bottom);}
+.screen.active{display:flex;}
+
+/* ANIMAZIONI */
+@keyframes flashGreen { 0% { background: rgba(16,185,129,0.3); } 100% { background: var(--bg); } }
+@keyframes flashRed { 0% { background: rgba(239,68,68,0.3); } 100% { background: var(--bg); } }
+@keyframes flashGold { 0% { background: rgba(245,158,11,0.3); } 100% { background: var(--bg); } }
+@keyframes btnPop { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+@keyframes btnShake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
+
+.flash-win { animation: flashGreen 0.35s ease-out; }
+.flash-lose { animation: flashRed 0.35s ease-out; }
+.flash-epic { animation: flashGold 0.35s ease-out; }
+.pop-effect { animation: btnPop 0.2s ease-out; }
+.shake-effect { animation: btnShake 0.2s ease-out; }
+
+/* HIGHLIGHTS COLORATI NELLE SFIDE */
+.hl-action { color: var(--text); font-weight: 700; }
+.hl-obj { color: var(--purple); font-weight: 800; font-size: 1.1rem; text-transform: uppercase; }
+.hl-det { color: var(--text2); font-weight: 400; }
+
+/* TASTI GLOBALI IN ALTO */
+#tutorialBtn{position:fixed;top:12px;left:12px;z-index:9990;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;backdrop-filter:blur(8px);}
+#testBtn{position:fixed;top:12px;right:12px;z-index:9990;background:rgba(155,92,246,0.9);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;backdrop-filter:blur(8px);}
+
+/* MODALE TUTORIAL */
+#tutorialModal {position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(5px);z-index:10000;display:none;align-items:center;justify-content:center;padding:1.5rem; opacity:0; transition:opacity 0.3s;}
+#tutorialModal.show {display:flex; opacity:1;}
+.tutorial-content {background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:1.75rem;width:100%;max-width:400px;max-height:85vh;overflow-y:auto; transform:translateY(20px); transition:transform 0.3s;}
+#tutorialModal.show .tutorial-content {transform:translateY(0);}
+.tutorial-title {font-size:1.4rem;color:var(--purple);margin-bottom:1.25rem;font-family:'Syne',sans-serif; text-align:center;}
+.tutorial-step {margin-bottom:1.25rem;}
+.tutorial-step h4 {font-size:1rem;color:#fff;margin-bottom:.3rem; display:flex; align-items:center; gap:.5rem;}
+.tutorial-step p {font-size:.85rem;color:var(--text2);line-height:1.5;}
+.btn-close-tut {background:var(--purple);color:#fff;border:none;width:100%;padding:1rem;border-radius:12px;font-size:1rem;font-weight:700;margin-top:1rem;font-family:'Space Grotesk',sans-serif;cursor:pointer;}
+
+/* ---- ONBOARDING & SETUP ---- */
+#onboarding{justify-content:center;align-items:center;padding:2rem 1.5rem;gap:2rem;}
+.logo-wrap{text-align:center;}
+.logo-wrap h1{font-size:clamp(2.5rem,10vw,3.5rem);background:linear-gradient(135deg,#c084fc,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-1px;}
+.onboard-card{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:1.75rem;width:100%;max-width:400px;}
+.onboard-card h2{font-size:1.1rem;color:var(--text2);margin-bottom:1.25rem;font-weight:500;}
+.field{display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem;}
+.field label{font-size:.8rem;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;}
+.field input{background:var(--bg2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:1rem;padding:.875rem 1rem;outline:none;}
+.field input:focus{border-color:var(--purple);}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:.5rem;border:none;border-radius:12px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-weight:600;transition:all .15s;}
+.btn-primary{background:var(--purple);color:#fff;padding:.875rem 1.5rem;font-size:.95rem;width:100%;}
+.btn-primary:active{transform:scale(.97);background:var(--purple2);}
+.btn-secondary{background:var(--bg2);color:var(--text2);border:1px solid var(--border);padding:.875rem 1rem;font-size:.85rem;}
+
+/* ---- HOME ---- */
+#home{padding:0;}
+.home-header{padding:1.25rem 1.25rem 0;display:flex;flex-direction:column;gap:.75rem;}
+.header-top{display:flex;align-items:center;justify-content:space-between; margin-top: 1.5rem;}
+.player-info h2{font-size:1.25rem;font-weight:700;}
+.player-info p{font-size:.8rem;color:var(--text3);}
+.home-body{flex:1;padding:1.25rem;display:flex;flex-direction:column;gap:1.25rem;}
+.btn-reset-cache{background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.2);padding:.5rem .75rem;font-size:.75rem;border-radius:8px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:.25rem;align-self:flex-start;}
+
+.setup-container{background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:1rem;}
+.setup-title{font-size:.8rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.75rem;font-weight:700;}
+.player-row-input{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.5rem;margin-bottom:.5rem;}
+.player-num-tag{background:var(--bg2);border:1px solid var(--border2);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:var(--purple);}
+.btn-remove-player{background:transparent;color:var(--text3);border:none;font-size:1.2rem;width:28px;height:28px;display:flex;align-items:center;justify-content:center; cursor:pointer;}
+.btn-remove-player:active{color:var(--red);}
+
+.timer-selector{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;background:var(--bg2);padding:.4rem;border-radius:12px;border:1px solid var(--border2);}
+.timer-btn{background:transparent;color:var(--text3);border:none;padding:.5rem;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:'Space Grotesk'; transition:all 0.2s;}
+.timer-btn.active{background:var(--purple-dim);color:var(--purple);border:1px solid var(--border);}
+
+.mode-cards{display:grid;grid-template-columns:1fr;gap:.75rem;}
+.mode-card{background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:1rem;display:flex;align-items:center;gap:1rem;cursor:pointer;transition:all .2s;}
+.mode-card:active{transform:scale(.98);border-color:var(--purple);}
+.mode-card .icon{font-size:2rem;background:var(--bg2);width:50px;height:50px;display:flex;align-items:center;justify-content:center;border-radius:12px;}
+.mode-card-text h3{font-size:.95rem;font-weight:700;line-height:1.2;}
+.mode-card-text p{font-size:.7rem;color:var(--text3);margin-top:.2rem;}
+
+/* ---- CHALLENGE ---- */
+#challenge{padding:0; margin-top: 1.5rem;}
+.challenge-top{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.25rem .5rem;}
+.back-btn{background:var(--bg3);border:1px solid var(--border);border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2);font-size:1.2rem;}
+.mode-tag{background:var(--purple-dim);color:var(--purple);border-radius:50px;padding:.3rem .875rem;font-size:.75rem;font-weight:600;}
+.challenge-body{flex:1;padding:1.25rem;display:flex;flex-direction:column;gap:1.25rem;}
+
+.timer-wrap{display:flex;flex-direction:column;align-items:center;gap:.5rem;}
+.timer-ring{position:relative;width:90px;height:90px;}
+.timer-ring svg{transform:rotate(-90deg);}
+.timer-ring circle.bg{fill:none;stroke:var(--bg3);stroke-width:5;}
+.timer-ring circle.prog{fill:none;stroke:var(--purple);stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset 1s linear,stroke .5s;}
+.timer-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;}
+
+.challenges-list-box{display:flex;flex-direction:column;gap:.75rem;width:100%;}
+.individual-challenge-card{background:var(--bg3);border:1px solid var(--border2);border-radius:14px;padding:.875rem 1rem;display:flex;flex-direction:column;gap:.4rem;position:relative;transition:all 0.3s;}
+
+.ich-header{display:flex;align-items:center;justify-content:space-between;}
+.ich-name{font-size:.8rem;color:var(--purple);font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.btn-reroll{background:var(--bg2);color:var(--text2);border:1px solid var(--border2);border-radius:6px;padding:.2rem .5rem;font-size:.7rem;cursor:pointer;}
+.ich-text{font-size:.95rem;font-weight:500;line-height:1.4;}
+
+/* Buzzer Grid Colorati */
+.buzzer-title{text-align:center;font-size:.8rem;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-top:.5rem;}
+.buzzer-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;width:100%;}
+.buzzer-btn{color:#fff;border:none;border-radius:16px;padding:1.25rem 1rem;font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:.25rem;transition:all .2s;box-shadow:inset 0 -3px 0 rgba(0,0,0,0.2);}
+.buzzer-btn:active{transform:scale(.95); box-shadow:inset 0 0 0 rgba(0,0,0,0);}
+.buzzer-btn.locked{opacity:0.4; pointer-events:none; box-shadow:none; transform:scale(0.95); filter:grayscale(100%);}
+.buzzer-btn span.sub{font-family:'Space Grotesk',sans-serif;font-size:.65rem;opacity:.8;font-weight:400;text-transform:uppercase;}
+
+/* Area Valutazione Spettacolo */
+.photo-preview{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:1.25rem 1rem;text-align:center;width:100%;display:flex;flex-direction:column;gap:1rem;}
+.media-container{background:var(--bg2);border-radius:12px;overflow:hidden;border:1px solid var(--border2);max-height:260px;display:flex;align-items:center;justify-content:center;}
+.media-container img, .media-container video{width:100%;max-height:260px;display:none;object-fit:cover;border-radius:12px;}
+
+.progress-bar-wrap{width:100%;background:var(--bg2);border-radius:50px;height:8px;margin-top:.5rem;overflow:hidden;}
+.progress-bar-fill{height:100%;background:var(--purple);width:0%;transition:width 0.3s ease;}
+
+.secret-status-box { background:var(--bg2); border:1px solid var(--border2); border-radius:12px; padding:.75rem; text-align:center; font-size:.85rem; color:var(--text); font-weight:600; }
+.vote-section{display:flex;flex-direction:column;gap:.75rem;width:100%;}
+.vote-btns{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;}
+.btn-approve{background:rgba(16,185,129,.12);color:var(--green);border:1px solid rgba(16,185,129,.3);border-radius:12px;padding:.8rem;font-size:.9rem;font-weight:700;cursor:pointer;}
+.btn-reject{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:.8rem;font-size:.9rem;font-weight:700;cursor:pointer;}
+.btn-epic{background:rgba(245,158,11,.12);color:var(--gold);border:1px solid rgba(245,158,11,.3);border-radius:12px;padding:.8rem;font-size:.9rem;font-weight:700;grid-column: span 2;cursor:pointer;}
+
+/* ---- RESULTS ---- */
+#results{padding:0; margin-top: 1.5rem; position:relative; overflow:hidden;}
+.results-header{padding:1.5rem 1.25rem 1rem;text-align:center;}
+.results-body{flex:1;padding:0 1.25rem 1.25rem;display:flex;flex-direction:column;gap:1.25rem; z-index:2;}
+.podium-wrap{display:flex;align-items:flex-end;justify-content:center;gap:.5rem;padding:.5rem 0;min-height:140px;}
+.podium-item{display:flex;flex-direction:column;align-items:center;gap:.4rem;flex:1;}
+.podium-avatar{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;border:2px solid transparent;}
+.podium-item:nth-child(2) .podium-avatar{width:56px;height:56px;background:var(--purple);border-color:rgba(155,92,246,.5);font-size:1.1rem;}
+.podium-item:nth-child(1) .podium-avatar,.podium-item:nth-child(3) .podium-avatar{width:46px;height:46px;background:var(--bg3);border-color:var(--border);}
+.podium-name{font-size:.75rem;color:var(--text2);text-align:center;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.podium-xp{font-size:.75rem;color:var(--purple);font-weight:700;}
+.podium-bar{border-radius:6px 6px 0 0;width:100%;}
+.podium-item:nth-child(2) .podium-bar{background:var(--purple);height:60px;}
+.podium-item:nth-child(1) .podium-bar{background:var(--bg3);border:1px solid var(--border);height:40px;}
+.podium-item:nth-child(3) .podium-bar{background:var(--bg3);border:1px solid var(--border);height:25px;}
+
+.leaderboard{display:flex;flex-direction:column;gap:.5rem;}
+.lb-row{background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:.875rem 1rem;display:flex;align-items:center;gap:.875rem;}
+.lb-row.first{border-color:var(--border);background:var(--purple-dim);}
+.lb-rank{font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;color:var(--text3);width:24px;text-align:center;}
+.lb-row.first .lb-rank{color:var(--purple);}
+.lb-name{flex:1;font-size:.9rem;font-weight:600;}
+.lb-pts{font-weight:700;color:var(--purple);}
+
+#confettiCanvas { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1; }
+
+.toast{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 20px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:.6rem 1.25rem;font-size:.85rem;color:var(--text);white-space:nowrap;opacity:0;transition:all .3s;z-index:9998;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body id="gameBodyRoot">
+
+<!-- TASTI GLOBALI IN ALTO -->
+<button id="tutorialBtn" onclick="toggleTutorial(true)">❓ COME SI GIOCA</button>
+<button id="testBtn" onclick="runTest()">⚡ TEST</button>
+
+<!-- MODALE TUTORIAL -->
+<div id="tutorialModal">
+  <div class="tutorial-content">
+    <h3 class="tutorial-title">📚 Regole di BetBuddy</h3>
+    
+    <div class="tutorial-step">
+      <h4><span>1️⃣</span> Fase 1: La Ricerca (Ansia)</h4>
+      <p>Al via del Timer, tutti corrono contemporaneamente a <strong>cercare l'oggetto</strong> richiesto dalla loro sfida.</p>
+    </div>
+    
+    <div class="tutorial-step">
+      <h4><span>🔴</span> La Prenotazione</h4>
+      <p>Hai trovato l'oggetto? Corri al telefono e premi il <strong>Buzzer del tuo colore</strong>. Il tuo turno viene "prenotato". Chi preme per primo prenderà più punti alla fine!</p>
+    </div>
+    
+    <div class="tutorial-step">
+      <h4><span>🎭</span> Fase 2: Lo Spettacolo</h4>
+      <p>Quando tutti hanno premuto o il tempo scade, inizia lo Show! L'app chiamerà uno ad uno i giocatori per <strong>esibirsi e fare la penitenza davanti agli amici</strong> (potete registrarli col tasto video).</p>
+    </div>
+    
+    <div class="tutorial-step">
+      <h4><span>🤫</span> Il Voto Segreto</h4>
+      <p>Finita l'esibizione, il telefono passa di mano in mano. Gli amici votano di nascosto la prova (Approva o Boccia). Se la maggioranza dice sì, si vincono i punti!</p>
+    </div>
+
+    <button class="btn-close-tut" onclick="toggleTutorial(false)">HO CAPITO, INIZIAMO! 🔥</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- SCREEN: ONBOARDING -->
+<div class="screen active" id="onboarding">
+  <div class="logo-wrap">
+    <h1>BetBuddy</h1>
+    <p>Il Party Game definitivo</p>
+  </div>
+  <div class="onboard-card">
+    <div id="nameStep">
+      <h2>Inserisci il tuo nome per iniziare</h2>
+      <div class="field" style="margin-top:1rem;">
+        <label>Il tuo nome (Capogruppo)</label>
+        <input type="text" id="nameInput" placeholder="Es. Marco 🔥" maxlength="20">
+      </div>
+      <button class="btn btn-primary" onclick="saveName()">Entra nel Gioco →</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN: HOME -->
+<div class="screen" id="home">
+  <div class="home-header">
+    <div class="header-top">
+      <div class="player-info">
+        <h2 id="homeName">Giocatore</h2>
+        <p>Prepara la sfida per la comitiva</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="home-body">
+    <button class="btn-reset-cache" onclick="resetAppCache()">❌ Cambia Nome / Azzera</button>
+
+    <div class="setup-container">
+      <div class="setup-title" style="display:flex; justify-content:space-between;">
+        <span>Iscrivi Giocatori (Max 6)</span>
+      </div>
+      <div id="playersInputsGrid"></div>
+      <button class="btn btn-secondary" onclick="addPlayerField()" style="background:var(--bg2); color:var(--text2); font-size:.8rem; padding:.5rem; width:100%; border:1px dashed var(--border); margin-top:.5rem;">+ Aggiungi Amico</button>
+    </div>
+
+    <div class="timer-selector">
+      <button class="timer-btn" id="btnTime60" onclick="setTimerSetting(60)">⚡ 1 Min</button>
+      <button class="timer-btn active" id="btnTime120" onclick="setTimerSetting(120)">⏱ 2 Min</button>
+      <button class="timer-btn" id="btnTime180" onclick="setTimerSetting(180)">🐢 3 Min</button>
+    </div>
+
+    <div class="mode-cards">
+      <div class="mode-card" onclick="startPlayMode('casa')">
+        <div class="icon">🏠</div>
+        <div class="mode-card-text">
+          <h3>Sfida a Casa</h3><p>Penitenze fisiche da fare in salotto</p>
+        </div>
+      </div>
+      <div class="mode-card" onclick="startPlayMode('fuori')">
+        <div class="icon">🌆</div>
+        <div class="mode-card-text">
+          <h3>Sfida Fuori</h3><p>Prove ignoranti in mezzo alla strada</p>
+        </div>
+      </div>
+      <div class="mode-card" onclick="startPlayMode('tutti')" style="border-color:var(--gold);">
+        <div class="icon">⚔️</div>
+        <div class="mode-card-text">
+          <h3 style="color:var(--gold);">Tutti contro Tutti</h3><p>Stessa identica sfida per tutta la comitiva!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN: CHALLENGE -->
+<div class="screen" id="challenge">
+  <div class="challenge-top">
+    <div class="back-btn" onclick="goHome()">←</div>
+    <div class="mode-tag" id="modeTag">FASE 1: LA RICERCA</div>
+    <div style="width:36px;"></div>
+  </div>
+  <div class="challenge-body">
+    
+    <!-- FASE 1: TIMER E BUZZER (Tutti in contemporanea) -->
+    <div id="phase1Zone">
+      <div class="timer-wrap" id="timerSection">
+        <div class="timer-ring">
+          <svg width="90" height="90" viewBox="0 0 90 90">
+            <circle class="bg" cx="45" cy="45" r="40"/>
+            <circle class="prog" id="timerRing" cx="45" cy="45" r="40" stroke-dasharray="251.3" stroke-dashoffset="0"/>
+          </svg>
+          <div class="timer-num" id="timerNum">2:00</div>
+        </div>
+      </div>
+
+      <div class="challenges-list-box" id="challengesListBox"></div>
+
+      <div id="buzzerZone">
+        <div class="buzzer-title">Chi trova l'oggetto si prenoti cliccando il suo colore! 👇</div>
+        <div class="buzzer-grid" id="buzzerGrid" style="margin-top:.5rem;"></div>
+      </div>
+    </div>
+
+    <!-- FASE 2: LO SPETTACOLO (Singoli giocatori in ordine di arrivo) -->
+    <div id="phase2Zone" style="display:none; width:100%;">
+      
+      <!-- Area Valutazione -->
+      <div class="photo-preview" id="mediaPreviewArea">
+        <div class="photo-overlay" id="currentBuzzerTitle" style="font-size:1.1rem;">Verdetto Giocatore</div>
+        
+        <!-- SCATTO OPZIONALE FOTO/VIDEO -->
+        <div class="media-container" onclick="triggerNativeCamera()" style="cursor:pointer; min-height:50px; border:1px dashed var(--border); margin-top:1rem;" id="camBoxTrigger">
+          <div id="mediaPlaceholder" style="color:var(--purple); font-size:.75rem; padding:.5rem; font-weight:700;">
+            📸 REGISTRA LA PENITENZA (OPZIONALE)
+          </div>
+          <img id="realPhotoImg" src="" alt="Foto Prova">
+          <video id="realVideoPlayback" controls playsinline></video>
+        </div>
+        <input type="file" id="cameraInput" accept="image/*,video/*" capture="environment" style="display:none;">
+
+        <!-- SBLOCCO -->
+        <button class="btn btn-primary" id="openVotingBtn" onclick="unlockVotingPanel()" style="padding:.75rem; font-size:.85rem; margin-top:1rem;">🔓 APRI VOTAZIONE SEGRETA</button>
+
+        <!-- PANNELLO VOTAZIONE SEGRETA -->
+        <div class="vote-section" id="voteSection" style="display:none; margin-top:.5rem;">
+          <p style="font-size:.8rem; color:var(--text2);">Passate il telefono! Ogni amico voti di nascosto:</p>
+          
+          <div class="secret-status-box" id="secretVoteStatus">
+            🗳️ In attesa del primo voto...
+          </div>
+          
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" id="voteProgressBar"></div></div>
+
+          <div class="vote-btns" style="margin-top:.5rem;">
+            <button class="btn-approve" id="voteYesBtn" onclick="registerComitivaVote('yes')">👍 APPROVA</button>
+            <button class="btn-reject" id="voteNoBtn" onclick="registerComitivaVote('no')">👎 BOCCIA</button>
+            <button class="btn-epic" id="voteEpicBtn" onclick="registerComitivaVote('epic')">🤩 EPICO (+20 XP)</button>
+          </div>
+
+          <button class="btn btn-primary" id="btnCalcResult" onclick="closeVotingAndCalcResult()" style="background:var(--bg2); color:var(--text3); border:1px solid var(--border); font-size:.8rem; padding:.5rem; margin-top:.5rem; pointer-events:none; opacity:0.5; transition:all 0.3s;">
+            🏁 RIVELA RISULTATO
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN: RESULTS -->
+<div class="screen" id="results">
+  <canvas id="confettiCanvas"></canvas>
+  <div class="results-header" style="z-index:2; position:relative;">
+    <div style="font-size:2.5rem;margin-bottom:.5rem;">🏆</div>
+    <h2>Classifica Comitiva</h2>
+  </div>
+  <div class="results-body">
+    <div class="podium-wrap" id="podiumWrap"></div>
+    <div class="leaderboard" id="leaderboard"></div>
+    <div class="results-actions" style="margin-top:1rem;">
+      <button class="btn btn-primary" onclick="nextRound()">🔄 Prossimo Round</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleTutorial(show) {
+  const modal = document.getElementById('tutorialModal');
+  if(show) modal.classList.add('show');
+  else modal.classList.remove('show');
+}
+
+const WORDS = {
+  azioni_casa: [
+    'Mettiti in equilibrio su una gamba tenendo',
+    'Siediti per terra e culla affettuosamente',
+    'Fai una dichiarazione d\'amore teatrale a',
+    'Fai 10 squat profondi abbracciando',
+    'Cammina per la stanza bilanciando sulla testa',
+    'Nascondi dietro la schiena e fai finta di aver perso',
+    'Lancia in aria e riprendi al volo per 5 volte',
+    'Fai finta di lottare contro ninja invisibili usando',
+    'Mettiti a pancia in giù e striscia come un soldato portando',
+    'Usa come finto microfono cantando a squarciagola con',
+    'Fai finta di suonare un assolo di chitarra rock usando',
+    'Mettiti in ginocchio e supplica perdono davanti a'
+  ],
+  oggetti_casa: [
+    'un cuscino del divano',
+    'il telecomando della TV',
+    'un rotolo di carta igienica',
+    'uno scolapasta',
+    'una ciabatta (preferibilmente usata)',
+    'una pentola vuota',
+    'un cucchiaio di legno',
+    'una bottiglia d\'acqua vuota',
+    'un calzino spaiato',
+    'uno spazzolino da denti',
+    'un mazzo di chiavi',
+    'un asciugamano piegato male',
+    'un ombrello chiuso',
+    'una scopa o uno straccio'
+  ],
+  dettagli_casa: [
+    'mentre parli con un finto accento inglese',
+    'in meno di 30 secondi cronometrati',
+    'con gli occhi rigorosamente chiusi',
+    'facendo la faccia più arrabbiata che ti riesce',
+    'ridendo in modo diabolico e inquietante',
+    'sussurrando come se stessi svelando un segreto',
+    'mentre tieni la lingua fuori dalla bocca',
+    'muovendoti a rallentatore come in un film',
+    'saltellando ininterrottamente sul posto',
+    'fingendo di piangere disperatamente'
+  ],
+  azioni_fuori: [
+    'Fai un inchino plateale fino a terra davanti a',
+    'Chiedi scusa a voce altissima a',
+    'Fai finta di vendere all\'asta a passanti immaginari',
+    'Urla "Sei il mio migliore amico!" abbracciando',
+    'Fai un balletto provocante girando attorno a',
+    'Fingiti un vigile urbano e dirigi il traffico usando',
+    'Gira su te stesso per 5 volte guardando fissamente',
+    'Mettiti in posa per una foto epica appoggiandoti a'
+  ],
+  oggetti_fuori: [
+    'un palo della luce stradale',
+    'il semaforo pedonale più vicino',
+    'un cartello stradale o dei lavori',
+    'un cassonetto della spazzatura',
+    'una panchina pubblica (se libera)',
+    'una bicicletta parcheggiata (senza toccarla)',
+    'una vetrina di un negozio',
+    'una pianta o un albero',
+    'un tombino per terra'
+  ],
+  dettagli_fuori: [
+    'mentre canti la sigla di un cartone animato',
+    'facendo finta di piangere in modo plateale',
+    'saltando continuamente su un piede solo',
+    'parlando una lingua completamente inventata',
+    'con l\'espressione di chi ha appena visto un fantasma',
+    'facendo ininterrottamente il verso di un piccione',
+    'muovendoti a scatti come un robot difettoso'
+  ]
+};
+
+const BUZZER_COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+
+let state = {
+  name: '', mode: 'casa',
+  players: [], playerRerolls: {},
+  challengesGenerated: {},
+  timer: null, timerLeft: 120, timerSetting: 120,
+  sessionScores: {},
+  buzzerQueue: [], // Qui salviamo l'ordine in cui si prenotano
+  currentShowIndex: 0, // Chi sta facendo lo spettacolo in Fase 2
+  currentRoundVotes: { yes: 0, no: 0, epic: 0 }
+};
+
+window.addEventListener('load', () => {
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  try {
+    const savedName = localStorage.getItem('bb_username_finale_v3');
+    if (savedName) {
+      state.name = savedName;
+      buildInitialSetupInputs();
+      showHome();
+    }
+  } catch(e) {}
+});
+
+function ls(k, v) { 
+  try {
+    if (v !== undefined) localStorage.setItem(k, v); 
+    return localStorage.getItem(k); 
+  } catch (error) { return null; }
+}
+
+function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
+
+function saveName() {
+  try {
+    const inputField = document.getElementById('nameInput');
+    if (!inputField) { alert("Errore. Ricarica la pagina."); return; }
+    const n = inputField.value.trim();
+    if (n === '') { alert("ATTENZIONE: Scrivi il tuo nome prima di entrare! 😅"); return; }
+    state.name = n;
+    ls('bb_username_finale_v3', n); 
+    buildInitialSetupInputs();
+    showHome();
+  } catch(err) { alert("Problema: " + err.message); }
+}
+
+function resetAppCache() {
+  try { localStorage.removeItem('bb_username_finale_v3'); } catch(e) {}
+  state.name = ''; state.players = []; state.sessionScores = {};
+  document.getElementById('nameInput').value = '';
+  show('onboarding');
+}
+
+function showHome() {
+  document.getElementById('homeName').textContent = state.name;
+  show('home');
+}
+
+function buildInitialSetupInputs() {
+  const c = document.getElementById('playersInputsGrid');
+  c.innerHTML = `
+    <div class="player-row-input">
+      <div class="player-num-tag">1</div>
+      <input type="text" class="comitiva-name-input" value="${state.name.replace(/"/g, '&quot;')}" readonly style="opacity:0.8; border-color:var(--purple);">
+      <button class="btn-remove-player" style="visibility:hidden;">✖</button>
+    </div>
+    <div class="player-row-input">
+      <div class="player-num-tag">2</div>
+      <input type="text" class="comitiva-name-input" placeholder="Nome Amico">
+      <button class="btn-remove-player" onclick="this.parentElement.remove(); renumberInputs();">✖</button>
+    </div>
+  `;
+}
+
+function addPlayerField() {
+  const c = document.getElementById('playersInputsGrid');
+  if (c.children.length >= 6) { toast('Massimo 6 giocatori!'); return; }
+  const div = document.createElement('div');
+  div.className = 'player-row-input';
+  div.innerHTML = `<div class="player-num-tag">0</div><input type="text" class="comitiva-name-input" placeholder="Nome Amico"><button class="btn-remove-player" onclick="this.parentElement.remove(); renumberInputs();">✖</button>`;
+  c.appendChild(div);
+  renumberInputs();
+}
+
+function renumberInputs() {
+  const rows = document.querySelectorAll('#playersInputsGrid .player-row-input');
+  rows.forEach((r, i) => r.querySelector('.player-num-tag').textContent = i + 1);
+}
+
+function setTimerSetting(secs) {
+  state.timerSetting = secs;
+  document.querySelectorAll('.timer-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btnTime'+secs).classList.add('active');
+}
+
+function startPlayMode(mode) {
+  state.mode = mode;
+  state.players = [];
+  state.challengesGenerated = {};
+  state.playerRerolls = {};
+  state.buzzerQueue = [];
+
+  document.querySelectorAll('.comitiva-name-input').forEach(input => {
+    const val = input.value.trim();
+    if (val) {
+      state.players.push(val);
+      state.playerRerolls[val] = 1; 
+      if (state.sessionScores[val] === undefined) state.sessionScores[val] = 0;
+    }
+  });
+
+  if (state.players.length < 2) { toast('Almeno 2 giocatori per giocare!'); return; }
+
+  generateAllChallenges();
+  resetChallengeScreen();
+  buildBuzzerGrid();
+  
+  document.getElementById('modeTag').textContent = 'FASE 1: LA RICERCA';
+  show('challenge');
+  startTimer();
+}
+
+function generateAllChallenges() {
+  const isTutti = state.mode === 'tutti';
+  const modeKey = (state.mode === 'fuori') ? 'fuori' : 'casa'; 
+  
+  const azioni = WORDS[`azioni_${modeKey}`];
+  const oggetti = WORDS[`oggetti_${modeKey}`];
+  const dettagli = WORDS[`dettagli_${modeKey}`];
+
+  let globalChallenge = null;
+  if(isTutti) {
+    globalChallenge = { a: rand(azioni), o: rand(oggetti), d: rand(dettagli) };
+  }
+
+  let poolA = [...azioni], poolO = [...oggetti], poolD = [...dettagli];
+
+  state.players.forEach(p => {
+    if (isTutti) {
+      state.challengesGenerated[p] = globalChallenge;
+    } else {
+      if (!poolA.length) poolA = [...azioni];
+      if (!poolO.length) poolO = [...oggetti];
+      if (!poolD.length) poolD = [...dettagli];
+      
+      const a = poolA.splice(Math.floor(Math.random()*poolA.length), 1)[0];
+      const o = poolO.splice(Math.floor(Math.random()*poolO.length), 1)[0];
+      const d = poolD.splice(Math.floor(Math.random()*poolD.length), 1)[0];
+      state.challengesGenerated[p] = { a, o, d };
+    }
+  });
+
+  renderChallengeList();
+}
+
+function renderChallengeList() {
+  const list = document.getElementById('challengesListBox');
+  list.innerHTML = '';
+  state.players.forEach(p => {
+    const c = state.challengesGenerated[p];
+    if(!c) return;
+    
+    // Se si è già prenotato, disabilitiamo il tasto Cambia
+    const hasBuzzed = state.buzzerQueue.includes(p);
+    
+    const htmlText = `<span class="hl-action">${c.a}</span> <span class="hl-obj">${c.o}</span> <span class="hl-det">${c.d}</span>`;
+    const div = document.createElement('div');
+    div.className = 'individual-challenge-card';
+    div.id = `card-${p.replace(/\s+/g, '_')}`;
+    
+    const showReroll = (!hasBuzzed && state.mode !== 'tutti' && state.playerRerolls[p] > 0) ? `<button class="btn-reroll" onclick="rerollSingle('${p.replace(/'/g, "\\'")}')">🔄 Cambia</button>` : '';
+
+    div.innerHTML = `
+      <div class="ich-header"><div class="ich-name">${p}</div>${showReroll}</div>
+      <div class="ich-text">${htmlText}</div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function rerollSingle(player) {
+  if(state.playerRerolls[player] <= 0 || state.buzzerQueue.includes(player)) return;
+  state.playerRerolls[player]--;
+  
+  const modeKey = (state.mode === 'fuori') ? 'fuori' : 'casa';
+  const a = rand(WORDS[`azioni_${modeKey}`]);
+  const o = rand(WORDS[`oggetti_${modeKey}`]);
+  const d = rand(WORDS[`dettagli_${modeKey}`]);
+  
+  state.challengesGenerated[player] = {a, o, d};
+  renderChallengeList();
+  toast('🔄 Sfida cambiata!');
+}
+
+function buildBuzzerGrid() {
+  const grid = document.getElementById('buzzerGrid');
+  grid.innerHTML = '';
+  state.players.forEach((p, idx) => {
+    const color = BUZZER_COLORS[idx % BUZZER_COLORS.length];
+    const btn = document.createElement('button');
+    btn.className = 'buzzer-btn';
+    btn.id = `buzzer-${p.replace(/\s+/g, '_')}`;
+    btn.style.background = color;
+    btn.innerHTML = `<span>${p}</span><span class="sub">HO L'OGGETTO!</span>`;
+    
+    btn.onclick = function() { pressBuzzer(p); };
+    
+    grid.appendChild(btn);
+  });
+}
+
+function resetChallengeScreen() {
+  document.getElementById('phase1Zone').style.display = 'block';
+  document.getElementById('phase2Zone').style.display = 'none';
+  
+  state.timerLeft = state.timerSetting;
+  updateTimerUI(state.timerLeft);
+}
+
+function startTimer() {
+  clearInterval(state.timer);
+  state.timerLeft = state.timerSetting;
+  updateTimerUI(state.timerLeft);
+  
+  state.timer = setInterval(() => {
+    state.timerLeft--;
+    updateTimerUI(state.timerLeft);
+    if (state.timerLeft <= 0) {
+      clearInterval(state.timer);
+      toast('⏰ Tempo Scaduto! Tutti al telefono, Inizia lo Spettacolo!');
+      
+      // Inserisce in coda chi non ha fatto in tempo a cliccare
+      state.players.forEach(p => {
+        if(!state.buzzerQueue.includes(p)) state.buzzerQueue.push(p);
+      });
+      
+      setTimeout(() => startShowPhase(), 2000);
+    }
+  }, 1000);
+}
+
+function updateTimerUI(s) {
+  const m = Math.floor(s/60);
+  const sec = s%60;
+  document.getElementById('timerNum').textContent = `${m}:${sec.toString().padStart(2,'0')}`;
+  const circ = 251.3;
+  const pct = s / state.timerSetting;
+  document.getElementById('timerRing').style.strokeDashoffset = circ * (1-pct);
+}
+
+// LOGICA FASE 1: PRENOTAZIONE
+function pressBuzzer(player) {
+  if (state.buzzerQueue.includes(player)) return; // Già cliccato
+  
+  state.buzzerQueue.push(player);
+  
+  // Cambia il pulsante (si oscura e mostra il posto)
+  const btn = document.getElementById(`buzzer-${player.replace(/\s+/g, '_')}`);
+  btn.classList.add('locked');
+  btn.querySelector('.sub').textContent = `${state.buzzerQueue.length}° POSTO`;
+  
+  renderChallengeList(); // Toglie il tasto cambia
+  
+  // Se tutti hanno cliccato, si passa alla fase 2 automaticamente!
+  if (state.buzzerQueue.length === state.players.length) {
+    clearInterval(state.timer);
+    setTimeout(() => startShowPhase(), 1000);
+  }
+}
+
+// LOGICA FASE 2: LO SPETTACOLO
+function startShowPhase() {
+  document.getElementById('phase1Zone').style.display = 'none';
+  document.getElementById('phase2Zone').style.display = 'block';
+  document.getElementById('modeTag').textContent = 'FASE 2: LO SPETTACOLO';
+  
+  state.currentShowIndex = 0;
+  showNextPlayerPerformance();
+}
+
+function showNextPlayerPerformance() {
+  // Se tutti hanno finito di esibirsi, mostra la classifica finale
+  if (state.currentShowIndex >= state.players.length) {
+    showResultsScreen();
+    return;
+  }
+  
+  const player = state.buzzerQueue[state.currentShowIndex];
+  
+  // Resetta i voti
+  state.currentRoundVotes = { yes: 0, no: 0, epic: 0 };
+  document.getElementById('secretVoteStatus').textContent = '🗳️ Chi vota per primo?';
+  document.getElementById('voteProgressBar').style.width = '0%';
+  
+  // Resetta bottoni
+  const calcBtn = document.getElementById('btnCalcResult');
+  calcBtn.style.pointerEvents = 'none';
+  calcBtn.style.opacity = '0.5';
+  calcBtn.style.background = 'var(--bg2)';
+  calcBtn.style.color = 'var(--text3)';
+  
+  // Prepara la scritta con la penitenza per chi si deve esibire!
+  const c = state.challengesGenerated[player];
+  const challengeHtml = `<span class="hl-action">${c.a}</span> <span class="hl-obj">${c.o}</span> <span class="hl-det">${c.d}</span>`;
+  
+  document.getElementById('currentBuzzerTitle').innerHTML = `
+    <div style="color:var(--purple); font-weight:800; font-family:'Syne'; margin-bottom:5px;">🎭 È IL TURNO DI ${player.toUpperCase()}!</div>
+    <div style="font-size:0.95rem; font-weight:500; line-height:1.4; color:var(--text);">${challengeHtml}</div>
+  `;
+  
+  document.getElementById('openVotingBtn').style.display = 'block';
+  document.getElementById('voteSection').style.display = 'none';
+  
+  // Resetta la videocamera
+  document.getElementById('cameraInput').value = '';
+  document.getElementById('realPhotoImg').style.display = 'none';
+  document.getElementById('realVideoPlayback').style.display = 'none';
+  document.getElementById('realVideoPlayback').src = '';
+  document.getElementById('mediaPlaceholder').style.display = 'block';
+}
+
+function triggerNativeCamera() { document.getElementById('cameraInput').click(); }
+
+document.getElementById('cameraInput').addEventListener('change', function(e) {
+  const f = e.target.files[0]; if(!f) return;
+  const u = URL.createObjectURL(f);
+  document.getElementById('mediaPlaceholder').style.display = 'none';
+  const i = document.getElementById('realPhotoImg'), v = document.getElementById('realVideoPlayback');
+  
+  if(f.type.startsWith('image/')) {
+    v.style.display='none'; v.pause(); v.src=''; i.src=u; i.style.display='block';
+  } else {
+    i.style.display='none'; i.src=''; v.src=u; v.style.display='block'; v.load(); v.play();
+  }
+});
+
+function unlockVotingPanel() {
+  document.getElementById('openVotingBtn').style.display = 'none';
+  document.getElementById('voteSection').style.display = 'flex';
+}
+
+function registerComitivaVote(type) {
+  const root = document.getElementById('gameBodyRoot');
+  state.currentRoundVotes[type]++;
+  
+  const tVotes = state.currentRoundVotes.yes + state.currentRoundVotes.no + state.currentRoundVotes.epic;
+  const targetVotes = Math.max(1, state.players.length - 1); 
+
+  if(type === 'yes') {
+    document.getElementById('voteYesBtn').classList.add('pop-effect'); root.classList.add('flash-win');
+    setTimeout(()=>{document.getElementById('voteYesBtn').classList.remove('pop-effect'); root.classList.remove('flash-win');}, 300);
+  } else if(type === 'no') {
+    document.getElementById('voteNoBtn').classList.add('shake-effect'); root.classList.add('flash-lose');
+    setTimeout(()=>{document.getElementById('voteNoBtn').classList.remove('shake-effect'); root.classList.remove('flash-lose');}, 300);
+  } else {
+    document.getElementById('voteEpicBtn').classList.add('pop-effect'); root.classList.add('flash-epic');
+    setTimeout(()=>{document.getElementById('voteEpicBtn').classList.remove('pop-effect'); root.classList.remove('flash-epic');}, 300);
+  }
+  
+  let pct = (tVotes / targetVotes) * 100;
+  if(pct > 100) pct = 100;
+  document.getElementById('voteProgressBar').style.width = pct + '%';
+  document.getElementById('secretVoteStatus').textContent = `✅ Voto preso (${tVotes}/${targetVotes}). Passa il telefono!`;
+
+  if(tVotes >= targetVotes) {
+    const calcBtn = document.getElementById('btnCalcResult');
+    calcBtn.style.pointerEvents = 'auto';
+    calcBtn.style.opacity = '1';
+    calcBtn.style.background = 'var(--purple)';
+    calcBtn.style.color = '#fff';
+    document.getElementById('secretVoteStatus').textContent = `🎉 Tutti hanno votato!`;
+  }
+}
+
+function closeVotingAndCalcResult() {
+  const player = state.buzzerQueue[state.currentShowIndex];
+  const si = state.currentRoundVotes.yes;
+  const no = state.currentRoundVotes.no;
+  const epic = state.currentRoundVotes.epic;
+  const totalPositive = si + epic;
+
+  if (totalPositive === 0 && no === 0) { toast('⚠️ Nessuno ha votato!'); return; }
+
+  if (totalPositive >= no) {
+    // I punti si basano sull'ordine in cui si erano prenotati (il posto nella coda)
+    const rank = state.buzzerQueue.indexOf(player) + 1;
+    let basePoints = rank === 1 ? 100 : (rank === 2 ? 50 : 25);
+    let totalPoints = basePoints + (epic > 0 ? 20 : 0); 
+    
+    state.sessionScores[player] += totalPoints;
+    toast(`🏆 APPROVATO! 👍${totalPositive} 👎${no}\n(+${totalPoints} XP a ${player})`);
+    fireConfetti();
+  } else {
+    toast(`💀 BOCCIATO! 👎${no} 👍${totalPositive}\n(0 XP a ${player})`);
+  }
+
+  // Passa al prossimo giocatore
+  state.currentShowIndex++;
+  setTimeout(() => {
+    showNextPlayerPerformance();
+  }, 2500);
+}
+
+function fireConfetti() {
+  const canvas = document.getElementById('confettiCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  let particles = [];
+  const colors = ['#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6'];
+  
+  for(let i=0; i<60; i++){
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height - canvas.height,
+      r: Math.random() * 6 + 2,
+      d: Math.random() * 60,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      tilt: Math.random() * 10,
+      tiltAngleInc: (Math.random() * 0.07) + 0.05,
+      tiltAngle: 0
+    });
+  }
+  
+  let angle = 0;
+  let animId;
+  function render() {
+    ctx.clearRect(0,0, canvas.width, canvas.height);
+    angle += 0.01;
+    particles.forEach(p => {
+      p.tiltAngle += p.tiltAngleInc;
+      p.y += (Math.cos(angle + p.d) + 1 + p.r / 2) / 2;
+      p.x += Math.sin(angle);
+      ctx.beginPath();
+      ctx.lineWidth = p.r;
+      ctx.strokeStyle = p.color;
+      ctx.moveTo(p.x + p.tilt + p.r, p.y);
+      ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r);
+      ctx.stroke();
+    });
+    if(particles[0].y < canvas.height + 100) animId = requestAnimationFrame(render);
+    else { cancelAnimationFrame(animId); ctx.clearRect(0,0,canvas.width,canvas.height); }
+  }
+  render();
+}
+
+function showResultsScreen() {
+  const scores = Object.entries(state.sessionScores).sort((a,b) => b[1] - a[1]);
+  const podium = document.getElementById('podiumWrap');
+  const orderedPodium = [scores[1] || null, scores[0] || null, scores[2] || null];
+
+  podium.innerHTML = orderedPodium.map((s, idx) => {
+    if (!s) return `<div class="podium-item"><div class="podium-bar"></div></div>`;
+    return `<div class="podium-item">
+        <div class="podium-avatar" style="${idx===1?'background:var(--purple);':''}">${s[0].slice(0,2).toUpperCase()}</div>
+        <div class="podium-name">${s[0]}</div>
+        <div class="podium-xp">${s[1]} XP</div>
+        <div class="podium-bar"></div>
+      </div>`;
+  }).join('');
+
+  const lb = document.getElementById('leaderboard');
+  lb.innerHTML = scores.map((s, i) => `
+    <div class="lb-row${i===0?' first':''}">
+      <div class="lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
+      <div class="lb-name">${s[0]}</div>
+      <div class="lb-pts">${s[1]} XP</div>
+    </div>`).join('');
+  show('results');
+}
+
+function nextRound() { showHome(); }
+function goHome() { clearInterval(state.timer); showHome(); }
+
+function runTest() {
+  state.name = 'Capogruppo ⚡'; showHome();
+  const c = document.getElementById('playersInputsGrid'); c.innerHTML = '';
+  ['Zia Anna', 'Marco', 'Luca', 'Sara'].forEach((n, i) => {
+    const d = document.createElement('div'); d.className = 'player-row-input';
+    d.innerHTML = `<div class="player-num-tag">${i+1}</div><input type="text" class="comitiva-name-input" value="${n}"><button class="btn-remove-player" onclick="this.parentElement.remove(); renumberInputs();">✖</button>`;
+    c.appendChild(d);
+  });
+  state.sessionScores = { 'Zia Anna': 100, 'Marco': 50, 'Luca': 25, 'Sara': 0 };
+  toast('⚡ Test Inserito!');
+}
+</script>
+</body>
+</html>
